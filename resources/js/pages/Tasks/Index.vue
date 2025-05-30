@@ -1,11 +1,23 @@
 <script setup lang="ts">
+import AppLayout from '@/layouts/AppLayout.vue';
+import { type BreadcrumbItem } from '@/types';
+import { Head } from '@inertiajs/vue3';
 
+
+const breadcrumbs: BreadcrumbItem[] = [
+    {
+        title: 'To-do List',
+        href: '/tasks',
+    },
+];
 </script>
 
 <template>
+    <Head title="To-do List" />
 
+    <AppLayout :breadcrumbs="breadcrumbs">
+        <div class="flex h-full flex-1 flex-col gap-4 rounded-xl p-4">
+            <h1>teste</h1>
+        </div>
+    </AppLayout>
 </template>
-
-<style scoped>
-
-</style>
