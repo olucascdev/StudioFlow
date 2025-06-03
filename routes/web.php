@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\TaskController;
+use App\Http\Controllers\ListController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -13,10 +13,10 @@ Route::get('dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/tasks', [TaskController::class,'index'])->name('tasks.index');
-    Route::post('/tasks', [TaskController::class,'store'])->name('tasks.store');
-    Route::put('/tasks/{task}', [TaskController::class,'update'])->name('tasks.update');
-    Route::delete('/tasks/{task}', [TaskController::class,'destroy'])->name('tasks.destroy');
+    Route::get('/lists', [ListController::class,'index'])->name('lists.index');
+    Route::post('/lists', [ListController::class,'store'])->name('lists.store');
+    Route::put('/lists/{lists}', [ListController::class,'update'])->name('lists.update');
+    Route::delete('/lists/{lists}', [ListController::class,'destroy'])->name('lists.destroy');
 });
 
 
