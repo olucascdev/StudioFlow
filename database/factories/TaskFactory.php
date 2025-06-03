@@ -22,7 +22,7 @@ class TaskFactory extends Factory
             'description' => fake()->text(),
             'status' => fake()->randomElement(['pending', 'completed']),
             'due_date' => fake()->dateTimeBetween('now', '+1 month'),
-            'user_id' => User::factory(),
+
         ];
     }
 }
