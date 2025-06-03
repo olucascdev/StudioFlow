@@ -10,7 +10,7 @@ import { Card, CardContent,  CardFooter, CardHeader, CardTitle } from '@/compone
 const breadcrumbs: BreadcrumbItem[] = [
     {
         title: 'To-do List',
-        href: '/tasks',
+        href: '/lists',
     },
 ];
 </script>
