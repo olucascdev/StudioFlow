@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Lists;
 use App\Models\User;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -14,11 +15,12 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
+            $table->foreignIdFor(Lists::class)->constrained()->cascadeOnDelete();
+            $table->foreignIdFor(User::class)->constrained()->cascadeOnDelete();
             $table->string('title');
             $table->text('description')->nullable();
             $table->enum('status', ['pending', 'completed'])->default('pending');
             $table->dateTime('due_date')->nullable();
-            $table->foreignIdFor(User::class)->constrained()->cascadeOnDelete();
             $table->timestamps();
         });
     }

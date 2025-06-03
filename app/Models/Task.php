@@ -16,8 +16,15 @@ class Task extends Model
         'description',
         'status',
         'due_date',
+        'list_id',
     ];
 
+
+
+    public function list(): BelongsTo
+    {
+        return $this->belongsTo(Lists::class);
+    }
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
