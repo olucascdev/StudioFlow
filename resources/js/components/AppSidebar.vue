@@ -16,7 +16,7 @@ const mainNavItems: NavItem[] = [
     },
     {
         title: 'To-do List',
-        href: '/tasks',
+        href: '/lists',
         icon: ListTodo,
     },
     {
