@@ -14,6 +14,7 @@ class ListController extends Controller
     {
         return Inertia::render('Lists/Index', [
             'lists' => auth()->user()->lists()->latest()->get(),
+            'tasks' => auth()->user()->tasks()->latest()->get(),
         ]);
     }
 
@@ -28,14 +29,13 @@ class ListController extends Controller
 
     public function update(Request $request, Lists $lists)
     {
-        $this->authorize('update', $lists);
+
         $lists->update($request->only(['title']));
         return redirect()->route('lists.index')->with('success', 'List updated successfully.');
     }
 
     public function destroy(Lists $lists)
     {
-        $this->authorize('delete', $lists);
         $lists->delete();
         return redirect()->route('lists.index')->with('success', 'List deleted successfully.');
     }
