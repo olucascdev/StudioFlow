@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreListRequest;
 use App\Models\Lists;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -15,12 +17,11 @@ class ListController extends Controller
         ]);
     }
 
-    public function store(Request $request){
-        $data = $request->validate([
-            'title' => 'required|string|max:255',
-        ]);
+    public function store(StoreListRequest $request): RedirectResponse
+    {
 
-        $request->user()->lists()->create($data);
+        $validatedData = $request->validated();
+        $request->user()->lists()->create($validatedData);
 
         return redirect()->route('lists.index')->with('success', 'List created successfully.');
     }
