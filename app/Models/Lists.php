@@ -11,7 +11,8 @@ class Lists extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'title'
+        'title',
+        'user_id',
     ];
 
     public function user(): BelongsTo
