@@ -15,13 +15,17 @@ class TaskFactory extends Factory
      *
      * @return array<string, mixed>
      */
+
     public function definition(): array
     {
+        static $order = 1;
         return [
             'title' => fake()->name(),
             'description' => fake()->text(),
             'status' => fake()->randomElement(['pending', 'completed']),
+            'order' => $order++,
             'due_date' => fake()->dateTimeBetween('now', '+1 month'),
+            'user_id' => User::factory(),
 
         ];
     }

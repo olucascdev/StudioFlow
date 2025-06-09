@@ -17,15 +17,18 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
+        $user = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@test.com',
             'password' => 'password',
         ]);
 
-        Lists::factory(5)->create([
-            'user_id' => 1,
-        ]);
+        Lists::factory(5)
+            ->for($user)
+            ->hasTasks(3)
+            ->create();
+
+
 
     }
 }
