@@ -11,13 +11,19 @@ import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { computed, ref, reactive } from 'vue';
+import DialogFormCreate from '@/components/DialogFormCreate.vue';
 
 interface Task {
     id: number;
     title: string;
-    completed: boolean;
+    description?: string;
+    status: 'pending' | 'completed';
+    order: number;
+    due_date?: string;
     list_id: number;
+    user_id: number;
 }
 
 interface List {
@@ -37,12 +43,16 @@ const listForm = useForm({
 // Form for creating new tasks
 const taskForm = useForm({
     title: '',
-    list_id: null as number | null,
+    description: '',
+    lists_id: null as number | null, // Changed from list_id to lists_id
+    due_date: '',
 });
 
 // Form for editing tasks
 const editTaskForm = useForm({
     title: '',
+    description: '',
+    due_date: '',
 });
 
 // Form for editing lists
@@ -54,26 +64,30 @@ const editListForm = useForm({
 const editingListId = ref<number | null>(null);
 const editListTitle = ref('');
 
+// Task creation modal state
+const createTaskModal = reactive({
+    isOpen: false,
+    listId: null as number | null,
+});
+
 // Task editing modal state
 const editTaskModal = reactive({
     isOpen: false,
     taskId: null as number | null,
     listId: null as number | null,
-    title: ''
+    title: '',
+    description: '',
+    due_date: ''
 });
-
-// Toast notifications state
-const toasts = ref<Array<{ id: number; message: string; type: 'success' | 'error' | 'info' }>>([]);
 
 // Create new list
 const addList = () => {
     listForm.post(route('lists.store'), {
         onSuccess: () => {
             listForm.reset('title');
-            showToast('List created successfully!', 'success');
         },
         onError: () => {
-            showToast('Error creating list', 'error');
+            console.error('Error creating list');
         }
     });
 };
@@ -90,10 +104,9 @@ const saveListTitle = (list: List) => {
     editListForm.put(route('lists.update', { lists: list.id }), {
         onSuccess: () => {
             editingListId.value = null;
-            showToast('List updated successfully!', 'success');
         },
         onError: () => {
-            showToast('Error updating list', 'error');
+            console.error('Error updating list');
         }
     });
 };
@@ -103,44 +116,65 @@ const deleteList = (id: number) => {
     if (confirm('Are you sure you want to delete this list and all its tasks?')) {
         router.delete(route('lists.destroy', { lists: id }), {
             onSuccess: () => {
-                showToast('List successfully deleted!', 'info');
+                console.log('List deleted successfully');
             },
             onError: () => {
-                showToast('Error deleting list', 'error');
+                console.error('Error deleting list');
             }
         });
     }
 };
 
-// Add task to list
-const addTask = (listId: number, newTaskTitle: string) => {
-    if (!newTaskTitle.trim()) return;
+// Open create task modal
+const openCreateTaskModal = (listId: number) => {
+    console.log('Opening create task modal for list:', listId);
+    createTaskModal.isOpen = true;
+    createTaskModal.listId = listId;
+    taskForm.reset();
+    taskForm.lists_id = listId; // Changed from list_id to lists_id
+};
 
-    taskForm.title = newTaskTitle;
-    taskForm.list_id = listId;
+// Close create task modal
+const closeCreateTaskModal = () => {
+    createTaskModal.isOpen = false;
+    createTaskModal.listId = null;
+    taskForm.reset();
+};
+
+// Create new task
+const createTask = () => {
+    if (!taskForm.title.trim()) return;
+
+    console.log('Creating task with data:', {
+        title: taskForm.title,
+        description: taskForm.description,
+        lists_id: taskForm.lists_id, // Changed from list_id to lists_id
+        due_date: taskForm.due_date
+    });
 
     taskForm.post(route('tasks.store'), {
         onSuccess: () => {
-            taskForm.reset();
-            showToast('Task added successfully!', 'success');
+            console.log('Task created successfully');
+            closeCreateTaskModal();
         },
-        onError: () => {
-            showToast('Error adding task', 'error');
+        onError: (errors) => {
+            console.error('Error creating task:', errors);
         }
     });
 };
 
 // Toggle task completion
 const toggleTaskCompletion = (task: Task) => {
+    const newStatus = task.status === 'completed' ? 'pending' : 'completed';
+
     router.put(route('tasks.update', { task: task.id }), {
-        completed: !task.completed
+        status: newStatus
     }, {
         onSuccess: () => {
-            const status = !task.completed ? 'concluída' : 'reaberta';
-            showToast(`Task ${status}!`, !task.completed ? 'success' : 'info');
+            console.log(`Task ${newStatus}`);
         },
         onError: () => {
-            showToast('Error updating task', 'error');
+            console.error('Error updating task');
         }
     });
 };
@@ -151,6 +185,8 @@ const openEditTaskModal = (task: Task) => {
     editTaskModal.taskId = task.id;
     editTaskModal.listId = task.list_id;
     editTaskModal.title = task.title;
+    editTaskModal.description = task.description || '';
+    editTaskModal.due_date = task.due_date ? task.due_date.split('T')[0] : '';
 };
 
 // Close edit task modal
@@ -159,6 +195,8 @@ const closeEditTaskModal = () => {
     editTaskModal.taskId = null;
     editTaskModal.listId = null;
     editTaskModal.title = '';
+    editTaskModal.description = '';
+    editTaskModal.due_date = '';
 };
 
 // Save task edit
@@ -166,13 +204,15 @@ const saveTaskEdit = () => {
     if (!editTaskModal.title.trim()) return;
 
     editTaskForm.title = editTaskModal.title;
+    editTaskForm.description = editTaskModal.description;
+    editTaskForm.due_date = editTaskModal.due_date;
+
     editTaskForm.put(route('tasks.update', { task: editTaskModal.taskId }), {
         onSuccess: () => {
             closeEditTaskModal();
-            showToast('Task updated successfully!', 'success');
         },
         onError: () => {
-            showToast('Error updating task', 'error');
+            console.error('Error updating task');
         }
     });
 };
@@ -182,10 +222,10 @@ const deleteTask = (taskId: number) => {
     if (confirm('Are you sure you want to delete this task?')) {
         router.delete(route('tasks.destroy', { task: taskId }), {
             onSuccess: () => {
-                showToast('Task successfully deleted!', 'info');
+                console.log('Task deleted successfully');
             },
             onError: () => {
-                showToast('Error deleting task', 'error');
+                console.error('Error deleting task');
             }
         });
     }
@@ -193,7 +233,7 @@ const deleteTask = (taskId: number) => {
 
 // Get completed tasks count for a list
 const getCompletedTasksCount = (list: List): number => {
-    return list.tasks?.filter(task => task.completed).length || 0;
+    return list.tasks?.filter(task => task.status === 'completed').length || 0;
 };
 
 // Get progress percentage for a list
@@ -204,42 +244,17 @@ const getProgressPercentage = (list: List): number => {
     return Math.round((completedTasks / totalTasks) * 100);
 };
 
-// Toast notification functions
-const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    const toast = {
-        id: Date.now(),
-        message,
-        type
-    };
-    toasts.value.push(toast);
-
-    // Auto-remove toast after 3 seconds
-    setTimeout(() => {
-        removeToast(toast.id);
-    }, 3000);
+// Format due date
+const formatDueDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
 };
 
-const removeToast = (id: number) => {
-    const index = toasts.value.findIndex(t => t.id === id);
-    if (index > -1) {
-        toasts.value.splice(index, 1);
-    }
+// Check if task is overdue
+const isOverdue = (task: Task): boolean => {
+    if (!task.due_date || task.status === 'completed') return false;
+    return new Date(task.due_date) < new Date();
 };
-
-const getToastClass = (type: string) => {
-    switch (type) {
-        case 'success':
-            return 'bg-green-50 text-green-800 border-green-200';
-        case 'error':
-            return 'bg-red-50 text-red-800 border-red-200';
-        case 'info':
-        default:
-            return 'bg-blue-50 text-blue-800 border-blue-200';
-    }
-};
-
-// Reactive task input refs for each list
-const taskInputs = ref<Record<number, string>>({});
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -329,58 +344,77 @@ const breadcrumbs: BreadcrumbItem[] = [
 
                 <!-- Card content with tasks -->
                 <CardContent class="flex-1 space-y-4">
-                    <!-- Add task form -->
-                    <form @submit.prevent="addTask(list.id, taskInputs[list.id] || ''); taskInputs[list.id] = ''">
-                        <div class="flex gap-2">
-                            <Input
-                                v-model="taskInputs[list.id]"
-                                type="text"
-                                placeholder="New Task"
-                                class="flex-1"
-                            />
-                            <Button type="submit" size="sm">
-                                <Plus class="w-4 h-4" />
-                            </Button>
-                        </div>
-                    </form>
+                    <!-- Add task button -->
+                    <div class="flex justify-center">
+                        <Button
+                            @click="openCreateTaskModal(list.id)"
+                            variant="outline"
+                            size="sm"
+                            class="w-full"
+                        >
+                            <Plus class="w-4 h-4 mr-2" />
+                            Add Task
+                        </Button>
+                    </div>
 
                     <!-- Tasks list -->
                     <div class="space-y-2">
                         <div
                             v-for="task in list.tasks"
                             :key="task.id"
-                            class="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border"
+                            class="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border"
+                            :class="{ 'border-red-200 bg-red-50': isOverdue(task) }"
                         >
                             <!-- Task checkbox -->
                             <Checkbox
                                 :id="`task-${task.id}`"
-                                :checked="task.completed"
+                                :checked="task.status === 'completed'"
                                 @update:checked="toggleTaskCompletion(task)"
+                                class="mt-1"
                             />
 
                             <!-- Status icon -->
-                            <div class="flex-shrink-0">
+                            <div class="flex-shrink-0 mt-1">
                                 <CheckCircle
-                                    v-if="task.completed"
+                                    v-if="task.status === 'completed'"
                                     class="w-4 h-4 text-green-600"
                                 />
                                 <Clock
                                     v-else
-                                    class="w-4 h-4 text-orange-500"
+                                    class="w-4 h-4"
+                                    :class="isOverdue(task) ? 'text-red-500' : 'text-orange-500'"
                                 />
                             </div>
 
-                            <!-- Task text -->
-                            <div class="flex-1 min-w-0">
-                                <span
-                                    :class="{ 'line-through text-muted-foreground': task.completed }"
-                                    class="block truncate"
-                                >
-                                    {{ task.title }}
-                                </span>
-                                <Badge v-if="task.completed" variant="secondary" class="text-xs mt-1">
-                                    Completed
-                                </Badge>
+                            <!-- Task content -->
+                            <div class="flex-1 min-w-0 space-y-1">
+                                <div>
+                                    <span
+                                        :class="{ 'line-through text-muted-foreground': task.status === 'completed' }"
+                                        class="block font-medium"
+                                    >
+                                        {{ task.title }}
+                                    </span>
+                                    <p
+                                        v-if="task.description"
+                                        :class="{ 'line-through text-muted-foreground': task.status === 'completed' }"
+                                        class="text-sm text-muted-foreground mt-1"
+                                    >
+                                        {{ task.description }}
+                                    </p>
+                                </div>
+
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <Badge v-if="task.status === 'completed'" variant="secondary" class="text-xs">
+                                        Completed
+                                    </Badge>
+                                    <Badge v-if="isOverdue(task)" variant="destructive" class="text-xs">
+                                        Overdue
+                                    </Badge>
+                                    <Badge v-if="task.due_date && !isOverdue(task) && task.status !== 'completed'" variant="outline" class="text-xs">
+                                        Due: {{ formatDueDate(task.due_date) }}
+                                    </Badge>
+                                </div>
                             </div>
 
                             <!-- Task actions -->
@@ -405,7 +439,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         <!-- Empty state -->
                         <div v-if="!list.tasks || list.tasks.length === 0" class="text-center text-muted-foreground py-8">
                             <p>No tasks added</p>
-                            <p class="text-sm">Add a task above to get started</p>
+                            <p class="text-sm">Click "Add Task" to get started</p>
                         </div>
                     </div>
                 </CardContent>
@@ -414,7 +448,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <div class="p-4 border-t bg-muted/20">
                     <div class="flex items-center justify-between text-sm text-muted-foreground mb-2">
                         <span>Progress</span>
-                        <span>{{ getCompletedTasksCount(list) }} de {{ list.tasks?.length || 0 }} tasks</span>
+                        <span>{{ getCompletedTasksCount(list) }} of {{ list.tasks?.length || 0 }} tasks</span>
                     </div>
                     <Progress :value="getProgressPercentage(list)" class="h-2" />
                     <div class="text-xs text-muted-foreground mt-1 text-center">
@@ -425,59 +459,106 @@ const breadcrumbs: BreadcrumbItem[] = [
 
             <!-- Empty state for no lists -->
             <div v-if="lists.length === 0" class="col-span-full text-center p-8 bg-muted/50 rounded-lg">
-                <p class="text-muted-foreground">No list created. Create your first list above.</p>
+                <p class="text-muted-foreground">No lists created. Create your first list above.</p>
             </div>
         </div>
     </AppLayout>
 
-    <!-- Edit Task Modal -->
-    <Dialog v-model:open="editTaskModal.isOpen">
+    <!-- Create Task Modal -->
+    <Dialog v-model:open="createTaskModal.isOpen">
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Edit Tasks</DialogTitle>
+                <DialogTitle>Create New Task</DialogTitle>
             </DialogHeader>
-            <form @submit.prevent="saveTaskEdit" class="space-y-4">
-                <Input
-                    v-model="editTaskModal.title"
-                    type="text"
-                    placeholder="Task title"
-                    class="w-full"
-                />
+            <form @submit.prevent="createTask" class="space-y-4">
+                <div>
+                    <label for="task-title" class="text-sm font-medium">Title</label>
+                    <Input
+                        id="task-title"
+                        v-model="taskForm.title"
+                        type="text"
+                        placeholder="Task title"
+                        class="w-full"
+                        required
+                    />
+                </div>
+                <div>
+                    <label for="task-description" class="text-sm font-medium">Description</label>
+                    <Textarea
+                        id="task-description"
+                        v-model="taskForm.description"
+                        placeholder="Task description (optional)"
+                        class="w-full"
+                        rows="3"
+                    />
+                </div>
+                <div>
+                    <label for="task-due-date" class="text-sm font-medium">Due Date</label>
+                    <Input
+                        id="task-due-date"
+                        v-model="taskForm.due_date"
+                        type="date"
+                        class="w-full"
+                    />
+                </div>
                 <div class="flex justify-end gap-2">
-                    <Button type="button" variant="outline" @click="closeEditTaskModal">
+                    <Button type="button" variant="outline" @click="closeCreateTaskModal">
                         Cancel
                     </Button>
-                    <Button type="submit" :disabled="editTaskForm.processing">
-                        Save
+                    <Button type="submit" :disabled="taskForm.processing">
+                        Create Task
                     </Button>
                 </div>
             </form>
         </DialogContent>
     </Dialog>
 
-    <!-- Toast Notifications -->
-    <div class="fixed top-4 right-4 z-50 flex flex-col gap-2">
-        <div
-            v-for="toast in toasts"
-            :key="toast.id"
-            :class="`${getToastClass(toast.type)} rounded-lg border p-4 shadow-md transition-all duration-300`"
-        >
-            <div class="flex justify-between items-center">
-                <div class="flex items-center gap-2">
-                    <CheckCircle v-if="toast.type === 'success'" class="w-4 h-4" />
-                    <X v-if="toast.type === 'error'" class="w-4 h-4" />
-                    <Clock v-if="toast.type === 'info'" class="w-4 h-4" />
-                    <span class="font-medium">{{ toast.message }}</span>
+    <!-- Edit Task Modal -->
+    <Dialog v-model:open="editTaskModal.isOpen">
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Edit Task</DialogTitle>
+            </DialogHeader>
+            <form @submit.prevent="saveTaskEdit" class="space-y-4">
+                <div>
+                    <label for="edit-task-title" class="text-sm font-medium">Title</label>
+                    <Input
+                        id="edit-task-title"
+                        v-model="editTaskModal.title"
+                        type="text"
+                        placeholder="Task title"
+                        class="w-full"
+                        required
+                    />
                 </div>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    @click="removeToast(toast.id)"
-                    class="h-auto p-1"
-                >
-                    <X class="w-4 h-4" />
-                </Button>
-            </div>
-        </div>
-    </div>
+                <div>
+                    <label for="edit-task-description" class="text-sm font-medium">Description</label>
+                    <Textarea
+                        id="edit-task-description"
+                        v-model="editTaskModal.description"
+                        placeholder="Task description (optional)"
+                        class="w-full"
+                        rows="3"
+                    />
+                </div>
+                <div>
+                    <label for="edit-task-due-date" class="text-sm font-medium">Due Date</label>
+                    <Input
+                        id="edit-task-due-date"
+                        v-model="editTaskModal.due_date"
+                        type="date"
+                        class="w-full"
+                    />
+                </div>
+                <div class="flex justify-end gap-2">
+                    <Button type="button" variant="outline" @click="closeEditTaskModal">
+                        Cancel
+                    </Button>
+                    <Button type="submit" :disabled="editTaskForm.processing">
+                        Save Changes
+                    </Button>
+                </div>
+            </form>
+        </DialogContent>
+    </Dialog>
 </template>
