@@ -16,8 +16,11 @@ class ListController extends Controller
             'lists' => auth()
                 ->user()
                 ->lists()
-                ->first()
                 ->withCount('tasks')
+                ->with(['tasks' => function ($query) {
+                    $query->orderBy('order', 'asc')
+                        ->orderBy('created_at', 'asc');
+                }])
                 ->get(),
 
         ]);
