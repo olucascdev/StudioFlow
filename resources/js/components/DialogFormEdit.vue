@@ -1,39 +1,60 @@
 <script setup lang="ts">
-import { Plus } from 'lucide-vue-next';
+import { Pencil } from 'lucide-vue-next';
 import { useForm } from '@inertiajs/vue3';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
+
+interface Task {
+    id: number;
+    title: string;
+    description?: string;
+    status: 'pending' | 'completed';
+    order: number;
+    due_date?: string;
+    lists_id: number;
+    user_id: number;
+}
 
 interface Props {
-    listId: number;
+    task: Task;
 }
 
 const props = defineProps<Props>();
 
 const isOpen = ref(false);
 
-// Form for creating new tasks
+// Form starts with empty values
 const form = useForm({
     title: '',
     description: '',
-    lists_id: props.listId,
     due_date: '',
 });
 
-// Create new task
-const createTask = () => {
+// Watch for changes in props.task and update the form
+watch(
+    () => props.task,
+    (newTask) => {
+        if (newTask) {
+            form.title = newTask.title || '';
+            form.description = newTask.description || '';
+            form.due_date = newTask.due_date ? newTask.due_date.split('T')[0] : '';
+        }
+    },
+    { deep: true, immediate: true }
+);
+// Save task edit
+const saveTask = () => {
     if (!form.title.trim()) return;
 
-    form.post(route('tasks.store'), {
+    form.put(route('tasks.update', { task: props.task.id }), {
         onSuccess: () => {
-            form.reset('title', 'description', 'due_date');
             isOpen.value = false;
         },
         onError: (errors) => {
-            console.error('Error creating task:', errors);
+            console.error('Error updating task:', errors);
         }
     });
 };
@@ -41,27 +62,30 @@ const createTask = () => {
 // Close modal
 const closeModal = () => {
     isOpen.value = false;
-    form.reset('title', 'description', 'due_date');
+    // Reset form to original task values
+    form.title = props.task.title;
+    form.description = props.task.description || '';
+    form.due_date = props.task.due_date ? props.task.due_date.split('T')[0] : '';
+    form.clearErrors();
 };
 </script>
 
 <template>
     <Dialog v-model:open="isOpen">
         <DialogTrigger as-child>
-            <Button variant="outline" size="sm" class="w-full">
-                <Plus class="w-4 h-4 mr-2" />
-                Add Task
+            <Button variant="outline" size="sm">
+                <Pencil class="w-3 h-3" />
             </Button>
         </DialogTrigger>
         <DialogContent class="sm:max-w-md">
             <DialogHeader>
-                <DialogTitle>Create New Task</DialogTitle>
+                <DialogTitle>Edit Task</DialogTitle>
             </DialogHeader>
-            <form @submit.prevent="createTask" class="space-y-4">
+            <form @submit.prevent="saveTask" class="space-y-4">
                 <div>
-                    <label for="task-title" class="text-sm font-medium">Title</label>
+                    <label for="edit-task-title" class="text-sm font-medium">Title</label>
                     <Input
-                        id="task-title"
+                        id="edit-task-title"
                         v-model="form.title"
                         type="text"
                         placeholder="Task title"
@@ -73,9 +97,9 @@ const closeModal = () => {
                     </div>
                 </div>
                 <div>
-                    <label for="task-description" class="text-sm font-medium">Description</label>
+                    <label for="edit-task-description" class="text-sm font-medium">Description</label>
                     <Textarea
-                        id="task-description"
+                        id="edit-task-description"
                         v-model="form.description"
                         placeholder="Task description (optional)"
                         class="w-full"
@@ -86,9 +110,9 @@ const closeModal = () => {
                     </div>
                 </div>
                 <div>
-                    <label for="task-due-date" class="text-sm font-medium">Due Date</label>
+                    <label for="edit-task-due-date" class="text-sm font-medium">Due Date</label>
                     <Input
-                        id="task-due-date"
+                        id="edit-task-due-date"
                         v-model="form.due_date"
                         type="date"
                         class="w-full"
@@ -102,7 +126,7 @@ const closeModal = () => {
                         Cancel
                     </Button>
                     <Button type="submit" :disabled="form.processing">
-                        Create Task
+                        Save Changes
                     </Button>
                 </div>
             </form>

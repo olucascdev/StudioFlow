@@ -1,142 +1,111 @@
 <script setup lang="ts">
-import { toTypedSchema } from '@vee-validate/zod'
-import { h } from 'vue'
-import * as z from 'zod'
+import { Plus } from 'lucide-vue-next';
+import { useForm } from '@inertiajs/vue3';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ref } from 'vue';
 
-import { Button } from '@/components/ui/button'
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from '@/components/ui/dialog'
-import {
-    Form,
-    FormControl,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue
-} from '@/components/ui/select'
-
-
-const formSchema = toTypedSchema(z.object({
-    username: z.string().min(2).max(50),
-}))
-
-
-
-function onSubmit(values: any) {
-    toast({
-        title: 'You submitted the following values:',
-        description: h('pre', { class: 'mt-2 w-[340px] rounded-md bg-slate-950 p-4' }, h('code', { class: 'text-white' }, JSON.stringify(values, null, 2))),
-    })
+interface Props {
+    listId: number;
 }
+
+const props = defineProps<Props>();
+
+const isOpen = ref(false);
+
+// Form for creating new tasks
+const form = useForm({
+    title: '',
+    description: '',
+    lists_id: props.listId,
+    due_date: '',
+});
+
+// Create new task
+const createTask = () => {
+    if (!form.title.trim()) return;
+
+    form.post(route('tasks.store'), {
+        onSuccess: () => {
+            form.reset('title', 'description', 'due_date');
+            isOpen.value = false;
+        },
+        onError: (errors) => {
+            console.error('Error creating task:', errors);
+        }
+    });
+};
+
+// Close modal
+const closeModal = () => {
+    isOpen.value = false;
+    form.reset('title', 'description', 'due_date');
+};
 </script>
 
 <template>
-    <Form v-slot="{ handleSubmit }" as="" keep-values :validation-schema="formSchema">
-        <Dialog>
-            <DialogTrigger as-child>
-                <Button variant="outline" class="w-8 h-8 text-sm">+</Button>
-            </DialogTrigger>
-            <DialogContent class="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Create New Task</DialogTitle>
-                </DialogHeader>
-
-                <form id="dialogForm" @submit="handleSubmit($event, onSubmit)" class="space-y-6 p-6">
-                    <!-- Title Field -->
-                    <FormField v-slot="{ componentField }" name="title">
-                        <FormItem class="space-y-2">
-                            <FormLabel class="text-sm font-medium">Title</FormLabel>
-                            <FormControl>
-                                <Input
-                                    type="text"
-                                    placeholder="Enter task title"
-                                    v-bind="componentField"
-                                    class="h-10"
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    </FormField>
-
-                    <!-- Description Field (nullable) -->
-                    <FormField v-slot="{ componentField }" name="description">
-                        <FormItem class="space-y-2">
-                            <FormLabel class="text-sm font-medium">Description</FormLabel>
-                            <FormControl>
-                                <Input
-                                    type="text"
-                                    placeholder="Enter task description (optional)"
-                                    v-bind="componentField"
-                                    class="h-10"
-                                />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    </FormField>
-
-                    <!-- Status and Due Date Row -->
-                    <div class="grid grid-cols-2 gap-4">
-                        <!-- Status Field -->
-                        <FormField v-slot="{ componentField }" name="status">
-                            <FormItem class="space-y-2">
-                                <FormLabel class="text-sm font-medium">Status</FormLabel>
-                                <Select v-bind="componentField">
-                                    <FormControl>
-                                        <SelectTrigger class="h-10">
-                                            <SelectValue placeholder="Select status" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                            </FormItem>
-                        </FormField>
-
-                        <!-- Due Date Field -->
-                        <FormField v-slot="{ componentField }" name="due_date">
-                            <FormItem class="space-y-2">
-                                <FormLabel class="text-sm font-medium">Due Date</FormLabel>
-                                <FormControl>
-                                    <Input
-                                        type="date"
-                                        v-bind="componentField"
-                                        class="h-10"
-                                    />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        </FormField>
+    <Dialog v-model:open="isOpen">
+        <DialogTrigger as-child>
+            <Button variant="outline" size="sm" class="w-full">
+                <Plus class="w-4 h-4 mr-2" />
+                Add Task
+            </Button>
+        </DialogTrigger>
+        <DialogContent class="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Create New Task</DialogTitle>
+            </DialogHeader>
+            <form @submit.prevent="createTask" class="space-y-4">
+                <div>
+                    <label for="task-title" class="text-sm font-medium">Title</label>
+                    <Input
+                        id="task-title"
+                        v-model="form.title"
+                        type="text"
+                        placeholder="Task title"
+                        class="w-full"
+                        required
+                    />
+                    <div v-if="form.errors.title" class="text-sm text-red-600 mt-1">
+                        {{ form.errors.title }}
                     </div>
-
-                    <DialogFooter class="pt-4">
-                        <div class="flex justify-end gap-3 w-full">
-                            <Button type="button" variant="outline" @click="closeDialog" class="px-6">
-                                Cancel
-                            </Button>
-                            <Button type="submit" class="px-6">
-                                Create Task
-                            </Button>
-                        </div>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
-    </Form>
+                </div>
+                <div>
+                    <label for="task-description" class="text-sm font-medium">Description</label>
+                    <Textarea
+                        id="task-description"
+                        v-model="form.description"
+                        placeholder="Task description (optional)"
+                        class="w-full"
+                        rows="3"
+                    />
+                    <div v-if="form.errors.description" class="text-sm text-red-600 mt-1">
+                        {{ form.errors.description }}
+                    </div>
+                </div>
+                <div>
+                    <label for="task-due-date" class="text-sm font-medium">Due Date</label>
+                    <Input
+                        id="task-due-date"
+                        v-model="form.due_date"
+                        type="date"
+                        class="w-full"
+                    />
+                    <div v-if="form.errors.due_date" class="text-sm text-red-600 mt-1">
+                        {{ form.errors.due_date }}
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <Button type="button" variant="outline" @click="closeModal">
+                        Cancel
+                    </Button>
+                    <Button type="submit" :disabled="form.processing">
+                        Create Task
+                    </Button>
+                </div>
+            </form>
+        </DialogContent>
+    </Dialog>
 </template>

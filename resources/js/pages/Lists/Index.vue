@@ -14,6 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { computed, ref, reactive } from 'vue';
 import DialogFormCreate from '@/components/DialogFormCreate.vue';
+import DialogFormEdit from '@/components/DialogFormEdit.vue';
 
 interface Task {
     id: number;
@@ -125,43 +126,6 @@ const deleteList = (id: number) => {
     }
 };
 
-// Open create task modal
-const openCreateTaskModal = (listId: number) => {
-    console.log('Opening create task modal for list:', listId);
-    createTaskModal.isOpen = true;
-    createTaskModal.listId = listId;
-    taskForm.reset();
-    taskForm.lists_id = listId; // Changed from list_id to lists_id
-};
-
-// Close create task modal
-const closeCreateTaskModal = () => {
-    createTaskModal.isOpen = false;
-    createTaskModal.listId = null;
-    taskForm.reset();
-};
-
-// Create new task
-const createTask = () => {
-    if (!taskForm.title.trim()) return;
-
-    console.log('Creating task with data:', {
-        title: taskForm.title,
-        description: taskForm.description,
-        lists_id: taskForm.lists_id, // Changed from list_id to lists_id
-        due_date: taskForm.due_date
-    });
-
-    taskForm.post(route('tasks.store'), {
-        onSuccess: () => {
-            console.log('Task created successfully');
-            closeCreateTaskModal();
-        },
-        onError: (errors) => {
-            console.error('Error creating task:', errors);
-        }
-    });
-};
 
 // Toggle task completion
 const toggleTaskCompletion = (task: Task) => {
@@ -179,48 +143,14 @@ const toggleTaskCompletion = (task: Task) => {
     });
 };
 
-// Open edit task modal
-const openEditTaskModal = (task: Task) => {
-    editTaskModal.isOpen = true;
-    editTaskModal.taskId = task.id;
-    editTaskModal.listId = task.list_id;
-    editTaskModal.title = task.title;
-    editTaskModal.description = task.description || '';
-    editTaskModal.due_date = task.due_date ? task.due_date.split('T')[0] : '';
-};
-
-// Close edit task modal
-const closeEditTaskModal = () => {
-    editTaskModal.isOpen = false;
-    editTaskModal.taskId = null;
-    editTaskModal.listId = null;
-    editTaskModal.title = '';
-    editTaskModal.description = '';
-    editTaskModal.due_date = '';
-};
-
-// Save task edit
-const saveTaskEdit = () => {
-    if (!editTaskModal.title.trim()) return;
-
-    editTaskForm.title = editTaskModal.title;
-    editTaskForm.description = editTaskModal.description;
-    editTaskForm.due_date = editTaskModal.due_date;
-
-    editTaskForm.put(route('tasks.update', { task: editTaskModal.taskId }), {
-        onSuccess: () => {
-            closeEditTaskModal();
-        },
-        onError: () => {
-            console.error('Error updating task');
-        }
-    });
-};
 
 // Delete task
-const deleteTask = (taskId: number) => {
+const deleteTask = (task: Task, listId: number) => {
     if (confirm('Are you sure you want to delete this task?')) {
-        router.delete(route('tasks.destroy', { task: taskId }), {
+        router.delete(route('lists.tasks.destroy', {
+            lists: listId,
+            task: task.id
+        }), {
             onSuccess: () => {
                 console.log('Task deleted successfully');
             },
@@ -284,7 +214,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                             />
                             <Button type="submit" :disabled="listForm.processing">
                                 <Plus class="w-4 h-4 mr-2" />
-                                + New List
+                                 New List
                             </Button>
                         </div>
                     </CardHeader>
@@ -346,15 +276,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                 <CardContent class="flex-1 space-y-4">
                     <!-- Add task button -->
                     <div class="flex justify-center">
-                        <Button
-                            @click="openCreateTaskModal(list.id)"
-                            variant="outline"
-                            size="sm"
-                            class="w-full"
-                        >
-                            <Plus class="w-4 h-4 mr-2" />
-                            Add Task
-                        </Button>
+                        <DialogFormCreate :list-id="list.id" />
                     </div>
 
                     <!-- Tasks list -->
@@ -395,13 +317,6 @@ const breadcrumbs: BreadcrumbItem[] = [
                                     >
                                         {{ task.title }}
                                     </span>
-                                    <p
-                                        v-if="task.description"
-                                        :class="{ 'line-through text-muted-foreground': task.status === 'completed' }"
-                                        class="text-sm text-muted-foreground mt-1"
-                                    >
-                                        {{ task.description }}
-                                    </p>
                                 </div>
 
                                 <div class="flex items-center gap-2 flex-wrap">
@@ -419,17 +334,11 @@ const breadcrumbs: BreadcrumbItem[] = [
 
                             <!-- Task actions -->
                             <div class="flex gap-1">
+                                <DialogFormEdit/>
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    @click="openEditTaskModal(task)"
-                                >
-                                    <Pencil class="w-3 h-3" />
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    @click="deleteTask(task.id)"
+                                    @click="deleteTask(task.id, listId)"
                                 >
                                     <Trash2 class="w-3 h-3" />
                                 </Button>
@@ -463,102 +372,4 @@ const breadcrumbs: BreadcrumbItem[] = [
             </div>
         </div>
     </AppLayout>
-
-    <!-- Create Task Modal -->
-    <Dialog v-model:open="createTaskModal.isOpen">
-        <DialogContent class="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Create New Task</DialogTitle>
-            </DialogHeader>
-            <form @submit.prevent="createTask" class="space-y-4">
-                <div>
-                    <label for="task-title" class="text-sm font-medium">Title</label>
-                    <Input
-                        id="task-title"
-                        v-model="taskForm.title"
-                        type="text"
-                        placeholder="Task title"
-                        class="w-full"
-                        required
-                    />
-                </div>
-                <div>
-                    <label for="task-description" class="text-sm font-medium">Description</label>
-                    <Textarea
-                        id="task-description"
-                        v-model="taskForm.description"
-                        placeholder="Task description (optional)"
-                        class="w-full"
-                        rows="3"
-                    />
-                </div>
-                <div>
-                    <label for="task-due-date" class="text-sm font-medium">Due Date</label>
-                    <Input
-                        id="task-due-date"
-                        v-model="taskForm.due_date"
-                        type="date"
-                        class="w-full"
-                    />
-                </div>
-                <div class="flex justify-end gap-2">
-                    <Button type="button" variant="outline" @click="closeCreateTaskModal">
-                        Cancel
-                    </Button>
-                    <Button type="submit" :disabled="taskForm.processing">
-                        Create Task
-                    </Button>
-                </div>
-            </form>
-        </DialogContent>
-    </Dialog>
-
-    <!-- Edit Task Modal -->
-    <Dialog v-model:open="editTaskModal.isOpen">
-        <DialogContent class="sm:max-w-md">
-            <DialogHeader>
-                <DialogTitle>Edit Task</DialogTitle>
-            </DialogHeader>
-            <form @submit.prevent="saveTaskEdit" class="space-y-4">
-                <div>
-                    <label for="edit-task-title" class="text-sm font-medium">Title</label>
-                    <Input
-                        id="edit-task-title"
-                        v-model="editTaskModal.title"
-                        type="text"
-                        placeholder="Task title"
-                        class="w-full"
-                        required
-                    />
-                </div>
-                <div>
-                    <label for="edit-task-description" class="text-sm font-medium">Description</label>
-                    <Textarea
-                        id="edit-task-description"
-                        v-model="editTaskModal.description"
-                        placeholder="Task description (optional)"
-                        class="w-full"
-                        rows="3"
-                    />
-                </div>
-                <div>
-                    <label for="edit-task-due-date" class="text-sm font-medium">Due Date</label>
-                    <Input
-                        id="edit-task-due-date"
-                        v-model="editTaskModal.due_date"
-                        type="date"
-                        class="w-full"
-                    />
-                </div>
-                <div class="flex justify-end gap-2">
-                    <Button type="button" variant="outline" @click="closeEditTaskModal">
-                        Cancel
-                    </Button>
-                    <Button type="submit" :disabled="editTaskForm.processing">
-                        Save Changes
-                    </Button>
-                </div>
-            </form>
-        </DialogContent>
-    </Dialog>
 </template>
